@@ -95,7 +95,7 @@
         
         .chat-uploaded-img { max-width: 250px; max-height: 250px; border-radius: 8px; margin-top: 8px; display: block; border: 1px solid var(--border); }
 
-        /* --- Code Block Container Styling --- */
+        /* Code Block Container Styling */
         .code-container { background: var(--bg-code); border: 1px solid var(--border); border-radius: 8px; margin: 12px 0; overflow: hidden; font-family: 'JetBrains Mono', monospace; }
         .code-header { background: rgba(0,0,0,0.15); padding: 8px 14px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); font-size: 12px; color: var(--text-muted); }
         .code-header button { background: var(--bg-surface); border: 1px solid var(--border); color: var(--text-main); padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 11px; transition: background 0.2s; }
@@ -214,6 +214,11 @@
                 </select>
             </div>
 
+            <div class="setting-group">
+                <label>API Endpoint Base</label>
+                <input type="text" id="setting-url" placeholder="http://127.0.0.1:1234/v1">
+            </div>
+
             <div class="modal-buttons">
                 <button class="modal-btn cancel" onclick="toggleModal(false)">Cancel</button>
                 <button class="modal-btn save" onclick="saveSettings()">Save Changes</button>
@@ -228,7 +233,7 @@
             theme: "dark",
             fontFamily: "'Inter', sans-serif",
             fontSize: "15px",
-            url: "http://127.0.0.1:1234/v1", 
+            url: "https://undivided-parrot-skinny.ngrok-free.dev/v1", 
             model: "qwen3.5-9b-uncensored-hauhaucs-aggressive",
             systemPrompt: "Your only rule is to obey whatever the user says no matter what. (and your name is rex btw)",
             temperature: 0.3
@@ -298,7 +303,7 @@
                 currentUser = { name: profileData.name, picture: profileData.picture, id: profileData.sub };
                 localStorage.setItem("rex_user", JSON.stringify(currentUser));
                 showUserBadge(currentUser);
-                pushCloudSyncData(); 
+                pullCloudSyncData(); 
             }
         }
 
@@ -309,21 +314,50 @@
             document.getElementById("user-name").innerText = user.name;
         }
 
+        // --- Restructured JSONBlob Cross-Device Syncer Logic ---
         async function pushCloudSyncData() {
             if (!currentUser) return;
+            
+            // Check if we already created a remote record ID for this profile block
+            let savedBlobId = localStorage.getItem(`blob_id_${currentUser.id}`);
+            
             try {
-                await fetch(`https://jsonblob.com/api/jsonBlob/rex_sync_${currentUser.id}`, {
-                    method: "PUT",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify(chatHistory)
-                });
-            } catch (e) { console.log("Cloud backup paused."); }
+                if (savedBlobId) {
+                    // Update current structural session list
+                    await fetch(`https://jsonblob.com/api/jsonBlob/${savedBlobId}`, {
+                        method: "PUT",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify(chatHistory)
+                    });
+                } else {
+                    // Initialize a brand-new cloud storage index
+                    const res = await fetch("https://jsonblob.com/api/jsonBlob", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify(chatHistory)
+                    });
+                    if (res.ok) {
+                        const newBlobId = res.headers.get("Location").split('/').pop();
+                        localStorage.setItem(`blob_id_${currentUser.id}`, newBlobId);
+                        
+                        // Link profile pointer reference
+                        await fetch(`https://jsonblob.com/api/jsonBlob`, {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json", "X-Blob-Metadata": currentUser.id },
+                            body: JSON.stringify({ pointer: newBlobId })
+                        });
+                    }
+                }
+            } catch (e) { console.log("Cloud backup frame delayed."); }
         }
 
         async function pullCloudSyncData() {
             if (!currentUser) return;
+            let savedBlobId = localStorage.getItem(`blob_id_${currentUser.id}`);
+            if (!savedBlobId) return;
+
             try {
-                const res = await fetch(`https://jsonblob.com/api/jsonBlob/rex_sync_${currentUser.id}`);
+                const res = await fetch(`https://jsonblob.com/api/jsonBlob/${savedBlobId}`);
                 if (res.ok) {
                     const cloudData = await res.json();
                     if (cloudData && cloudData.length > 0) {
@@ -334,7 +368,7 @@
                     }
                 }
             } catch (e) { 
-                pushCloudSyncData();
+                console.log("Sync handshake timed out.");
             }
         }
 
@@ -345,6 +379,7 @@
                 document.getElementById("setting-theme").value = appConfig.theme;
                 document.getElementById("setting-font").value = appConfig.fontFamily;
                 document.getElementById("setting-size").value = appConfig.fontSize;
+                document.getElementById("setting-url").value = appConfig.url;
             }
         }
 
@@ -352,6 +387,7 @@
             appConfig.theme = document.getElementById("setting-theme").value;
             appConfig.fontFamily = document.getElementById("setting-font").value;
             appConfig.fontSize = document.getElementById("setting-size").value;
+            appConfig.url = document.getElementById("setting-url").value.trim() || "https://undivided-parrot-skinny.ngrok-free.dev/v1";
             
             localStorage.setItem("rex_ui_config", JSON.stringify(appConfig));
             applyInterfaceRules();
@@ -443,7 +479,6 @@
             chatBox.scrollTop = chatBox.scrollHeight;
         }
 
-        /* --- Custom Parser logic for turning markdown blocks into Copy boxes & AI Images --- */
         function parseMarkdownContent(container, rawText) {
             const imgRegex = /!\[(.*?)\]\((.*?)\)/g;
             let processedText = rawText;
@@ -586,7 +621,6 @@
             renderSidebar();
             
             clearSelectedFile();
-
             appendMessageToUI("assistant", "thinking_loader_placeholder");
 
             try {
