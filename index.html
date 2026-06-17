@@ -106,11 +106,11 @@
         .chat-uploaded-img { max-width: 250px; max-height: 250px; border-radius: 8px; margin-top: 8px; display: block; border: 1px solid var(--border); }
 
         /* Code Block Container Styling */
-        .code-container { background: var(--bg-code); border: 1px solid var(--border); border-radius: 8px; margin: 12px 0; overflow: hidden; font-family: 'JetBrains Mono', monospace; }
+        .code-container { background: var(--bg-code); border: 1px solid var(--border); border-radius: 8px; margin: 12px 0; overflow: hidden; font-family: 'JetBrains Mono', monospace; width: 100%; }
         .code-header { background: rgba(0,0,0,0.15); padding: 8px 14px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); font-size: 12px; color: var(--text-muted); }
         .code-header button { background: var(--bg-surface); border: 1px solid var(--border); color: var(--text-main); padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 11px; transition: background 0.2s; }
         .code-header button:hover { background: var(--accent); color: #131314; }
-        .code-container pre { padding: 14px; overflow-x: auto; font-family: 'JetBrains Mono', monospace; font-size: 14px; color: #f8f8f2; white-space: pre; }
+        .code-container pre { padding: 14px; overflow-x: auto; font-family: 'JetBrains Mono', monospace; font-size: 14px; color: #f8f8f2; white-space: pre-wrap; word-break: break-all; }
         
         /* Thinking Dots Animation */
         .thinking-dots { display: flex; gap: 6px; align-items: center; height: 24px; font-weight: 500; color: var(--accent); }
@@ -318,6 +318,8 @@
                 appConfig.model = "qwen3.5-4b-uncensored-hauhaucs-aggressive";
             } else if (appConfig.model === "qwen3.5-4b-uncensored-hauhaucs-aggressive") {
                 appConfig.model = "qwen3.5-2b-uncensored-hauhaucs-aggressive";
+            } else if (appConfig.model === "qwen3.5-2b-uncensored-hauhaucs-aggressive") {
+                appConfig.model = "qwen2.5-coder-3b-instruct-abliterated";
             } else {
                 appConfig.model = "qwen3.5-9b-uncensored-hauhaucs-aggressive";
             }
@@ -335,6 +337,9 @@
             } else if (appConfig.model === "qwen3.5-2b-uncensored-hauhaucs-aggressive") {
                 toggleBtn.innerText = "2B Lite";
                 toggleBtn.classList.remove("mode-advanced");
+            } else if (appConfig.model === "qwen2.5-coder-3b-instruct-abliterated") {
+                toggleBtn.innerText = "3B Coder";
+                toggleBtn.classList.add("mode-advanced");
             } else {
                 toggleBtn.innerText = "9B Pro";
                 toggleBtn.classList.add("mode-advanced");
@@ -368,6 +373,8 @@
                 document.getElementById("active-model-badge").innerText = "Qwen 3.5 9B";
             } else if (appConfig.model.includes("4b")) {
                 document.getElementById("active-model-badge").innerText = "Qwen 3.5 4B";
+            } else if (appConfig.model.includes("3b") || appConfig.model.includes("coder")) {
+                document.getElementById("active-model-badge").innerText = "Qwen 2.5 3B Coder";
             } else {
                 document.getElementById("active-model-badge").innerText = "Qwen 3.5 2B";
             }
@@ -605,61 +612,101 @@
             bubble.className = "bubble";
             bubble.style.fontFamily = appConfig.fontFamily;
             
-            if (role === 'user') {
-                bubble.innerText = text;
-                if (imgUrl) {
-                    const img = document.createElement("img");
-                    img.src = imgUrl;
-                    img.className = "chat-uploaded-img";
-                    bubble.appendChild(img);
-                }
-            } else {
-                parseMarkdownContent(bubble, text);
+            if (imgUrl) {
+                const img = document.createElement("img");
+                img.src = imgUrl;
+                img.className = "chat-uploaded-img";
+                bubble.appendChild(img);
             }
+            
+            const textNode = document.createElement("div");
+            textNode.innerHTML = parseMarkdown(text);
+            bubble.appendChild(textNode);
             
             row.appendChild(bubble);
             chatBox.appendChild(row);
             chatBox.scrollTop = chatBox.scrollHeight;
-            return bubble;
+        }
+
+        function parseMarkdown(text) {
+            if (!text) return "";
+            
+            // Clean HTML tags safely upfront
+            let cleanText = text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+            
+            // Re-map markers sequentially to guarantee strings containing spaces/returns stay intact
+            let tokens = [];
+            let codeBlockRegex = /```([\s\S]*?)```/g;
+            
+            cleanText = cleanText.replace(codeBlockRegex, function(match, codeBody) {
+                let lines = codeBody.split('\n');
+                let lang = "CODE";
+                if(lines.length > 0 && lines[0].trim().length > 0 && lines[0].trim().length < 15) {
+                    lang = lines[0].trim().toUpperCase();
+                    lines.shift();
+                }
+                let blockCode = lines.join('\n').trim();
+                let placeholder = `___CODE_BLOCK_PLACEHOLDER_${tokens.length}___`;
+                
+                tokens.push(`<div class="code-container"><div class="code-header"><span>${lang}</span></div><pre><code>${blockCode}</code></pre></div>`);
+                return placeholder;
+            });
+
+            // Inline items mapping
+            cleanText = cleanText
+                .replace(/`([^`\n]+)`/g, '<code style="background:var(--bg-code);padding:2px 6px;border-radius:4px;">$1</code>')
+                .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+                .replace(/\n/g, '<br>');
+
+            // Restore blocks
+            for (let i = 0; i < tokens.length; i++) {
+                cleanText = cleanText.replace(`___CODE_BLOCK_PLACEHOLDER_${i}___`, tokens[i]);
+            }
+
+            return cleanText;
         }
 
         async function sendMessage() {
             const inputEl = document.getElementById("user-input");
             const text = inputEl.value.trim();
             if (!text && !attachedImageBase64) return;
-
+            
             inputEl.value = "";
-            autoGrow(inputEl);
-
+            inputEl.style.height = "auto";
+            
             const activeChat = chatHistory.find(c => c.id === currentChatId);
             if (!activeChat) return;
 
-            let userContent = text;
+            // Generate initial title block dynamic setup if first message
+            if (activeChat.messages.length === 0) {
+                activeChat.title = text.substring(0, 26) + (text.length > 26 ? "..." : "");
+            }
+
+            let userContent;
             if (attachedImageBase64) {
                 userContent = [
                     { type: "text", text: text },
                     { type: "image_url", image_url: { url: attachedImageBase64 } }
                 ];
+            } else {
+                userContent = text;
             }
 
             activeChat.messages.push({ role: "user", content: userContent });
-            if (activeChat.title === "New Chat Session" && text) {
-                activeChat.title = text.substring(0, 26) + "...";
-            }
-            
             localStorage.setItem("rex_chats", JSON.stringify(chatHistory));
             renderSidebar();
             appendMessageToUI("user", text, attachedImageBase64);
+            
+            const imgTemp = attachedImageBase64;
             clearSelectedFile();
 
-            const thinkingRow = document.createElement("div");
-            thinkingRow.className = "message-row ai-row";
-            thinkingRow.innerHTML = `<div class="bubble"><div class="thinking-dots"><span></span><span></span><span></span></div></div>`;
-            document.getElementById("chat-box").appendChild(thinkingRow);
-            document.getElementById("chat-box").scrollTop = document.getElementById("chat-box").scrollHeight;
+            // Construct payload history sequence array context
+            let reqMessages = [{ role: "system", content: appConfig.systemPrompt }];
+            activeChat.messages.forEach(m => {
+                reqMessages.push({ role: m.role, content: m.content });
+            });
 
-            let payloadMessages = [{ role: "system", content: appConfig.systemPrompt }];
-            activeChat.messages.forEach(m => payloadMessages.push(m));
+            showThinkingIndicator();
 
             try {
                 const response = await fetch(`${appConfig.url}/chat/completions`, {
@@ -667,61 +714,51 @@
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
                         model: appConfig.model,
-                        messages: payloadMessages,
+                        messages: reqMessages,
                         temperature: appConfig.temperature
                     })
                 });
 
-                thinkingRow.remove();
+                removeThinkingIndicator();
 
                 if (response.ok) {
                     const data = await response.json();
-                    const aiText = data.choices[0].message.content;
-                    activeChat.messages.push({ role: "assistant", content: aiText });
+                    const reply = data.choices[0].message.content;
+                    activeChat.messages.push({ role: "assistant", content: reply });
                     localStorage.setItem("rex_chats", JSON.stringify(chatHistory));
-                    appendMessageToUI("assistant", aiText);
+                    appendMessageToUI("assistant", reply);
                     pushCloudSyncData();
                 } else {
-                    appendMessageToUI("assistant", "⚠️ Connection error. Please verify backend state.");
+                    appendMessageToUI("assistant", "⚠️ Error responding from server interface endpoint.");
                 }
-            } catch (e) {
-                thinkingRow.remove();
-                appendMessageToUI("assistant", "⚠️ Server unreachable. Verify your endpoint setup.");
+            } catch (err) {
+                removeThinkingIndicator();
+                appendMessageToUI("assistant", "⚠️ Connection error or API Offline. Check terminal endpoint connection status.");
             }
         }
 
-        function parseMarkdownContent(element, text) {
-            let escaped = text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-            const codeBlockRegex = /```(\w*)\n([\s\S]*?)```/g;
-            let match;
-            let lastIndex = 0;
-            let htmlOutput = "";
-
-            while ((match = codeBlockRegex.exec(escaped)) !== null) {
-                if (match.index > lastIndex) {
-                    htmlOutput += inlineMarkdown(escaped.substring(lastIndex, match.index));
-                }
-                const lang = match[1] || "code";
-                const code = match[2];
-                htmlOutput += `
-                    <div class="code-container">
-                        <div class="code-header">
-                            <span>${lang.toUpperCase()}</span>
-                            <button onclick="navigator.clipboard.writeText(this.parentElement.nextElementSibling.innerText)">Copy</button>
-                        </div>
-                        <pre>${code}</pre>
-                    </div>
-                `;
-                lastIndex = codeBlockRegex.lastIndex;
-            }
-            if (lastIndex < escaped.length) {
-                htmlOutput += inlineMarkdown(escaped.substring(lastIndex));
-            }
-            element.innerHTML = htmlOutput;
+        function showThinkingIndicator() {
+            const chatBox = document.getElementById("chat-box");
+            const row = document.createElement("div");
+            row.className = "message-row ai-row";
+            row.id = "thinking-indicator-row";
+            
+            const bubble = document.createElement("div");
+            bubble.className = "bubble";
+            
+            const dots = document.createElement("div");
+            dots.className = "thinking-dots";
+            dots.innerHTML = "<span></span><span></span><span></span>";
+            
+            bubble.appendChild(dots);
+            row.appendChild(bubble);
+            chatBox.appendChild(row);
+            chatBox.scrollTop = chatBox.scrollHeight;
         }
 
-        function inlineMarkdown(txt) {
-            return txt.replace(/\n/g, "<br>").replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>").replace(/\*(.*?)\*/g, "<em>$1</em>");
+        function removeThinkingIndicator() {
+            const indicator = document.getElementById("thinking-indicator-row");
+            if (indicator) indicator.remove();
         }
     </script>
 </body>
