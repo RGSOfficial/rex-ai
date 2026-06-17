@@ -134,6 +134,11 @@
         .icon-btn { background: transparent; border: none; color: var(--text-muted); cursor: pointer; font-size: 20px; display: flex; align-items: center; justify-content: center; transition: color 0.2s; width: 32px; height: 32px; }
         .icon-btn:hover { color: var(--text-main); }
 
+        /* Model Selector Quick Toggle Button */
+        .model-toggle-btn { background: var(--bg-surface); border: 1px solid var(--border); color: var(--text-main); padding: 0 12px; height: 36px; border-radius: 10px; cursor: pointer; font-size: 13px; font-weight: 600; display: flex; align-items: center; justify-content: center; transition: all 0.2s; white-space: nowrap; }
+        .model-toggle-btn:hover { border-color: var(--accent); background: rgba(168, 127, 251, 0.1); }
+        .model-toggle-btn.mode-advanced { border-color: var(--accent); color: var(--accent); }
+
         .send-btn { background: var(--accent); border: none; color: #131314; width: 36px; height: 36px; border-radius: 10px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 18px; transition: background 0.2s, transform 0.1s; flex-shrink: 0; }
         .send-btn:hover { background: var(--accent-hover); transform: scale(1.03); }
 
@@ -193,7 +198,7 @@
                 <button class="menu-toggle-btn" onclick="toggleSidebar(true)">☰</button>
                 <h3>Rex AI</h3>
             </div>
-            <span id="active-model-badge">Qwen 3.5 9B</span>
+            <span id="active-model-badge">Qwen 3.5 9/4B</span>
         </div>
         <div id="chat-box"></div>
         
@@ -207,6 +212,9 @@
                 <input type="file" id="file-uploader" accept="image/*" style="display: none;" onchange="handleFileSelection(event)">
                 <button class="icon-btn" onclick="document.getElementById('file-uploader').click()">+</button>
                 <textarea id="user-input" rows="1" placeholder="Type your message here..." oninput="autoGrow(this)" onkeydown="handleKeyPress(event)"></textarea>
+                
+                <button id="model-fast-toggle" class="model-toggle-btn" onclick="toggleModelSpeed()">🚀 9B Advanced</button>
+                
                 <button class="send-btn" onclick="sendMessage()">➔</button>
             </div>
         </div>
@@ -275,6 +283,7 @@
 
         window.onload = function() {
             applyInterfaceRules();
+            updateToggleBtnUI();
             renderSidebar();
             
             if (currentChatId) {
@@ -304,6 +313,29 @@
             }
         };
 
+        function toggleModelSpeed() {
+            if (appConfig.model === "qwen3.5-9b-uncensored-hauhaucs-aggressive") {
+                appConfig.model = "qwen3.5-4b-uncensored-hauhaucs-aggressive";
+            } else {
+                appConfig.model = "qwen3.5-9b-uncensored-hauhaucs-aggressive";
+            }
+            
+            localStorage.setItem("rex_ui_config", JSON.stringify(appConfig));
+            applyInterfaceRules();
+            updateToggleBtnUI();
+        }
+
+        function updateToggleBtnUI() {
+            const toggleBtn = document.getElementById("model-fast-toggle");
+            if (appConfig.model === "qwen3.5-4b-uncensored-hauhaucs-aggressive") {
+                toggleBtn.innerText = "4B Flash";
+                toggleBtn.classList.remove("mode-advanced");
+            } else {
+                toggleBtn.innerText = "9B Pro";
+                toggleBtn.classList.add("mode-advanced");
+            }
+        }
+
         function toggleSidebar(open) {
             const sidebar = document.getElementById("sidebar");
             const overlay = document.getElementById("sidebar-overlay");
@@ -327,7 +359,11 @@
             const bubbles = document.querySelectorAll('.bubble');
             bubbles.forEach(b => b.style.fontFamily = appConfig.fontFamily);
             
-            document.getElementById("active-model-badge").innerText = appConfig.model.substring(0, 16);
+            if (appConfig.model.includes("9b")) {
+                document.getElementById("active-model-badge").innerText = "Qwen 3.5 9B";
+            } else {
+                document.getElementById("active-model-badge").innerText = "Qwen 3.5 4B";
+            }
         }
 
         function decodeJwt(token) {
@@ -427,6 +463,7 @@
             
             localStorage.setItem("rex_ui_config", JSON.stringify(appConfig));
             applyInterfaceRules();
+            updateToggleBtnUI();
             toggleModal(false);
         }
 
@@ -475,7 +512,7 @@
                 titleSpan.innerText = chat.title || "Empty Conversation";
                 titleSpan.onclick = () => {
                     loadChat(chat.id);
-                    toggleSidebar(false); // Closes sidebar on mobile after clicking
+                    toggleSidebar(false);
                 };
 
                 const deleteBtn = document.createElement("button");
@@ -483,7 +520,7 @@
                 deleteBtn.innerHTML = "✕";
                 deleteBtn.title = "Delete Chat";
                 deleteBtn.onclick = (e) => {
-                    e.stopPropagation(); // Stops loading the chat when deleting it
+                    e.stopPropagation();
                     deleteChat(chat.id);
                 };
 
@@ -552,6 +589,120 @@
             chatBox.scrollTop = chatBox.scrollHeight;
         }
 
+        function appendMessageToUI(role, text, imgUrl = null) {
+            const chatBox = document.getElementById("chat-box");
+            const row = document.createElement("div");
+            row.className = `message-row ${role === 'user' ? 'user-row' : 'ai-row'}`;
+            
+            const bubble = document.createElement("div");
+            bubble.className = "bubble";
+            bubble.style.fontFamily = appConfig.fontFamily;
+            
+            if (role === 'user') {
+                bubble.innerText = text;
+                if (imgUrl) {
+                    const img = document.createElement("img");
+                    img.src = imgUrl;
+                    img.className = "chat-uploaded-img";
+                    bubble.appendChild(img);
+                }
+            } else {
+                parseMarkdownContent(bubble, text);
+            }
+            
+            row.appendChild(bubble);
+            chatBox.appendChild(row);
+            chatBox.scrollTop = chatBox.scrollHeight;
+            return bubble;
+        }
+
+        async function sendMessage() {
+            const inputEl = document.getElementById("user-input");
+            const text = inputEl.value.trim();
+            if (!text && !attachedImageBase64) return;
+
+            inputEl.value = "";
+            inputEl.style.height = "auto";
+
+            let activeChat = chatHistory.find(c => c.id === currentChatId);
+            if (!activeChat) {
+                startNewChat();
+                activeChat = chatHistory[0];
+            }
+
+            if (activeChat.messages.length === 0) {
+                activeChat.messages.push({ role: "system", content: appConfig.systemPrompt });
+                activeChat.title = text.substring(0, 24) || "Image Upload Chat";
+                renderSidebar();
+            }
+
+            let userMessageContent = text;
+            let currentImagePayload = attachedImageBase64;
+
+            if (currentImagePayload) {
+                userMessageContent = [
+                    { type: "text", text: text },
+                    { type: "image_url", image_url: { url: currentImagePayload } }
+                ];
+            }
+
+            activeChat.messages.push({ role: "user", content: userMessageContent });
+            appendMessageToUI("user", text, currentImagePayload);
+            clearSelectedFile();
+
+            const aiRow = document.createElement("div");
+            aiRow.className = "message-row ai-row";
+            const aiBubble = document.createElement("div");
+            aiBubble.className = "bubble";
+            aiBubble.style.fontFamily = appConfig.fontFamily;
+            
+            const loader = document.createElement("div");
+            loader.className = "thinking-dots";
+            loader.innerHTML = "<span></span><span></span><span></span>";
+            aiBubble.appendChild(loader);
+            aiRow.appendChild(aiBubble);
+            document.getElementById("chat-box").appendChild(aiRow);
+            document.getElementById("chat-box").scrollTop = document.getElementById("chat-box").scrollHeight;
+
+            try {
+                let formattedMessages = activeChat.messages.map(m => {
+                    if (Array.isArray(m.content)) {
+                        let textBlock = m.content.find(p => p.type === "text");
+                        return { role: m.role, content: textBlock ? textBlock.text : "" };
+                    }
+                    return m;
+                });
+
+                const response = await fetch(`${appConfig.url}/chat/completions`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        model: appConfig.model, 
+                        messages: formattedMessages,
+                        temperature: appConfig.temperature
+                    })
+                });
+
+                aiBubble.innerHTML = "";
+                if (response.ok) {
+                    const data = await response.json();
+                    const replyText = data.choices[0].message.content;
+                    activeChat.messages.push({ role: "assistant", content: replyText });
+                    parseMarkdownContent(aiBubble, replyText);
+                } else {
+                    aiBubble.innerText = "Error: Check your connection or LM Studio settings.";
+                }
+            } catch (err) {
+                aiBubble.innerHTML = "";
+                aiBubble.innerText = "Failed to communicate with local AI server endpoint engine framework base.";
+            }
+
+            localStorage.setItem("rex_chats", JSON.stringify(chatHistory));
+            document.getElementById("chat-box").scrollTop = document.getElementById("chat-box").scrollHeight;
+            pushCloudSyncData();
+        }
+
+        // Updated function to handle bold text parsing properly alongside codeblocks and images
         function parseMarkdownContent(container, rawText) {
             const imgRegex = /!\[(.*?)\]\((.*?)\)/g;
             let processedText = rawText;
@@ -581,9 +732,7 @@
             while ((match = codeRegex.exec(processedText)) !== null) {
                 const textBefore = processedText.substring(lastIndex, match.index);
                 if (textBefore.trim()) {
-                    const textNode = document.createElement("span");
-                    textNode.innerText = textBefore;
-                    container.appendChild(textNode);
+                    renderTextWithBold(container, textBefore);
                 }
 
                 const language = match[1] || "code";
@@ -617,115 +766,40 @@
             }
 
             const textAfter = processedText.substring(lastIndex);
-            if (textAfter.trim()) {
-                const textNode = document.createElement("span");
-                textNode.innerText = textAfter;
-                container.appendChild(textNode);
+            if (textAfter.trim() || container.children.length === 0) {
+                renderTextWithBold(container, textAfter);
             }
         }
 
-        function appendMessageToUI(role, text, imageUrl = null) {
-            const chatBox = document.getElementById("chat-box");
-            const isUser = role === "user";
-            const rowClass = isUser ? "user-row" : "ai-row";
-            
-            const row = document.createElement("div");
-            row.className = `message-row ${rowClass}`;
-            
-            const bubble = document.createElement("div");
-            bubble.className = "bubble";
-            bubble.style.fontFamily = appConfig.fontFamily;
-            
-            const content = document.createElement("div");
-            content.className = "message-content";
-            
-            if (text === "thinking_loader_placeholder") {
-                content.className = "message-content thinking-dots";
-                content.innerHTML = `Rex is thinking <span></span><span></span><span></span>`;
-                row.id = "rex-thinking-indicator";
-            } else {
-                parseMarkdownContent(content, text);
-                if (imageUrl) {
-                    const img = document.createElement("img");
-                    img.src = imageUrl;
-                    img.className = "chat-uploaded-img";
-                    content.appendChild(img);
-                }
-            }
-            
-            bubble.appendChild(content);
-            row.appendChild(bubble);
-            chatBox.appendChild(row);
-            chatBox.scrollTop = chatBox.scrollHeight;
-        }
+        // Helper function that breaks text blocks up and bolds any segment enclosed in **
+        function renderTextWithBold(parentContainer, textBlock) {
+            const boldRegex = /\*\*([\s\S]*?)\*\*/g;
+            let lastIdx = 0;
+            let boldMatch;
 
-        async function sendMessage() {
-            const inputField = document.getElementById("user-input");
-            const userText = inputField.value.trim();
-            if (!userText && !attachedImageBase64) return;
-
-            appendMessageToUI("user", userText, attachedImageBase64);
-            inputField.value = "";
-            inputField.style.height = "auto";
-
-            let activeChat = chatHistory.find(c => c.id === currentChatId);
-            if (!activeChat) return;
-
-            if (activeChat.messages.length === 0) {
-                activeChat.title = userText ? userText.substring(0, 24) : "Uploaded Image";
-            }
-
-            if (activeChat.messages.length === 0 && appConfig.systemPrompt) {
-                activeChat.messages.push({ role: "system", content: appConfig.systemPrompt });
-            }
-
-            let messagePayloadContent;
-            if (attachedImageBase64) {
-                messagePayloadContent = [
-                    { type: "text", text: userText || "Describe this image" },
-                    { type: "image_url", image_url: { url: attachedImageBase64 } }
-                ];
-            } else {
-                messagePayloadContent = userText;
-            }
-
-            activeChat.messages.push({ role: "user", content: messagePayloadContent });
-            localStorage.setItem("rex_chats", JSON.stringify(chatHistory));
-            renderSidebar();
-            
-            clearSelectedFile();
-            appendMessageToUI("assistant", "thinking_loader_placeholder");
-
-            try {
-                const response = await fetch(`${appConfig.url}/chat/completions`, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        model: appConfig.model,
-                        temperature: appConfig.temperature,
-                        messages: activeChat.messages
-                    })
-                });
-
-                const loader = document.getElementById("rex-thinking-indicator");
-                if (loader) loader.remove();
-
-                if (!response.ok) {
-                    throw new Error("API Connection failed");
+            while ((boldMatch = boldRegex.exec(textBlock)) !== null) {
+                const plainTextBefore = textBlock.substring(lastIdx, boldMatch.index);
+                if (plainTextBefore) {
+                    const span = document.createElement("span");
+                    span.innerText = plainTextBefore;
+                    parentContainer.appendChild(span);
                 }
 
-                const data = await response.json();
-                const aiResponseText = data.choices[0].message.content;
-                
-                activeChat.messages.push({ role: "assistant", content: aiResponseText });
-                localStorage.setItem("rex_chats", JSON.stringify(chatHistory));
-                appendMessageToUI("assistant", aiResponseText);
-                pushCloudSyncData();
+                const boldTextContent = boldMatch[1];
+                if (boldTextContent) {
+                    const strong = document.createElement("strong");
+                    strong.innerText = boldTextContent;
+                    parentContainer.appendChild(strong);
+                }
 
-            } catch (e) {
-                const loader = document.getElementById("rex-thinking-indicator");
-                if (loader) loader.remove();
-                appendMessageToUI("assistant", "Error pulling direct feedback from endpoint. Double check your settings server mapping block configuration flags.");
+                lastIdx = boldRegex.lastIndex;
+            }
+
+            const plainTextAfter = textBlock.substring(lastIdx);
+            if (plainTextAfter) {
+                const span = document.createElement("span");
+                span.innerText = plainTextAfter;
+                parentContainer.appendChild(span);
             }
         }
     </script>
