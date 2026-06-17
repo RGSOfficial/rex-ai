@@ -137,7 +137,9 @@
         /* Model Selector Quick Toggle Button */
         .model-toggle-btn { background: var(--bg-surface); border: 1px solid var(--border); color: var(--text-main); padding: 0 12px; height: 36px; border-radius: 10px; cursor: pointer; font-size: 13px; font-weight: 600; display: flex; align-items: center; justify-content: center; transition: all 0.2s; white-space: nowrap; }
         .model-toggle-btn:hover { border-color: var(--accent); background: rgba(168, 127, 251, 0.1); }
-        .model-toggle-btn.mode-advanced { border-color: var(--accent); color: var(--accent); }
+        .model-toggle-btn.mode-9b { border-color: var(--accent); color: var(--accent); }
+        .model-toggle-btn.mode-4b { border-color: #38bdf8; color: #38bdf8; }
+        .model-toggle-btn.mode-2b { border-color: #34d399; color: #34d399; }
 
         .send-btn { background: var(--accent); border: none; color: #131314; width: 36px; height: 36px; border-radius: 10px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 18px; transition: background 0.2s, transform 0.1s; flex-shrink: 0; }
         .send-btn:hover { background: var(--accent-hover); transform: scale(1.03); }
@@ -198,7 +200,7 @@
                 <button class="menu-toggle-btn" onclick="toggleSidebar(true)">☰</button>
                 <h3>Rex AI</h3>
             </div>
-            <span id="active-model-badge">Qwen 3.5 9/4B</span>
+            <span id="active-model-badge">Qwen 3.5 9B</span>
         </div>
         <div id="chat-box"></div>
         
@@ -213,7 +215,7 @@
                 <button class="icon-btn" onclick="document.getElementById('file-uploader').click()">+</button>
                 <textarea id="user-input" rows="1" placeholder="Type your message here..." oninput="autoGrow(this)" onkeydown="handleKeyPress(event)"></textarea>
                 
-                <button id="model-fast-toggle" class="model-toggle-btn" onclick="toggleModelSpeed()">🚀 9B Advanced</button>
+                <button id="model-fast-toggle" class="model-toggle-btn" onclick="toggleModelSpeed()">🚀 9B Pro</button>
                 
                 <button class="send-btn" onclick="sendMessage()">➔</button>
             </div>
@@ -316,6 +318,8 @@
         function toggleModelSpeed() {
             if (appConfig.model === "qwen3.5-9b-uncensored-hauhaucs-aggressive") {
                 appConfig.model = "qwen3.5-4b-uncensored-hauhaucs-aggressive";
+            } else if (appConfig.model === "qwen3.5-4b-uncensored-hauhaucs-aggressive") {
+                appConfig.model = "qwen3.5-2b-uncensored-hauhaucs-aggressive";
             } else {
                 appConfig.model = "qwen3.5-9b-uncensored-hauhaucs-aggressive";
             }
@@ -327,12 +331,17 @@
 
         function updateToggleBtnUI() {
             const toggleBtn = document.getElementById("model-fast-toggle");
+            toggleBtn.classList.remove("mode-9b", "mode-4b", "mode-2b");
+
             if (appConfig.model === "qwen3.5-4b-uncensored-hauhaucs-aggressive") {
                 toggleBtn.innerText = "4B Flash";
-                toggleBtn.classList.remove("mode-advanced");
+                toggleBtn.classList.add("mode-4b");
+            } else if (appConfig.model === "qwen3.5-2b-uncensored-hauhaucs-aggressive") {
+                toggleBtn.innerText = "2B Lite";
+                toggleBtn.classList.add("mode-2b");
             } else {
                 toggleBtn.innerText = "9B Pro";
-                toggleBtn.classList.add("mode-advanced");
+                toggleBtn.classList.add("mode-9b");
             }
         }
 
@@ -359,10 +368,12 @@
             const bubbles = document.querySelectorAll('.bubble');
             bubbles.forEach(b => b.style.fontFamily = appConfig.fontFamily);
             
-            if (appConfig.model.includes("9b")) {
+            if (appConfig.model.includes("-9b")) {
                 document.getElementById("active-model-badge").innerText = "Qwen 3.5 9B";
-            } else {
+            } else if (appConfig.model.includes("-4b")) {
                 document.getElementById("active-model-badge").innerText = "Qwen 3.5 4B";
+            } else {
+                document.getElementById("active-model-badge").innerText = "Qwen 3.5 2B";
             }
         }
 
@@ -614,193 +625,6 @@
             chatBox.appendChild(row);
             chatBox.scrollTop = chatBox.scrollHeight;
             return bubble;
-        }
-
-        async function sendMessage() {
-            const inputEl = document.getElementById("user-input");
-            const text = inputEl.value.trim();
-            if (!text && !attachedImageBase64) return;
-
-            inputEl.value = "";
-            inputEl.style.height = "auto";
-
-            let activeChat = chatHistory.find(c => c.id === currentChatId);
-            if (!activeChat) {
-                startNewChat();
-                activeChat = chatHistory[0];
-            }
-
-            if (activeChat.messages.length === 0) {
-                activeChat.messages.push({ role: "system", content: appConfig.systemPrompt });
-                activeChat.title = text.substring(0, 24) || "Image Upload Chat";
-                renderSidebar();
-            }
-
-            let userMessageContent = text;
-            let currentImagePayload = attachedImageBase64;
-
-            if (currentImagePayload) {
-                userMessageContent = [
-                    { type: "text", text: text },
-                    { type: "image_url", image_url: { url: currentImagePayload } }
-                ];
-            }
-
-            activeChat.messages.push({ role: "user", content: userMessageContent });
-            appendMessageToUI("user", text, currentImagePayload);
-            clearSelectedFile();
-
-            const aiRow = document.createElement("div");
-            aiRow.className = "message-row ai-row";
-            const aiBubble = document.createElement("div");
-            aiBubble.className = "bubble";
-            aiBubble.style.fontFamily = appConfig.fontFamily;
-            
-            const loader = document.createElement("div");
-            loader.className = "thinking-dots";
-            loader.innerHTML = "<span></span><span></span><span></span>";
-            aiBubble.appendChild(loader);
-            aiRow.appendChild(aiBubble);
-            document.getElementById("chat-box").appendChild(aiRow);
-            document.getElementById("chat-box").scrollTop = document.getElementById("chat-box").scrollHeight;
-
-            try {
-                let formattedMessages = activeChat.messages.map(m => {
-                    if (Array.isArray(m.content)) {
-                        let textBlock = m.content.find(p => p.type === "text");
-                        return { role: m.role, content: textBlock ? textBlock.text : "" };
-                    }
-                    return m;
-                });
-
-                const response = await fetch(`${appConfig.url}/chat/completions`, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        model: appConfig.model, 
-                        messages: formattedMessages,
-                        temperature: appConfig.temperature
-                    })
-                });
-
-                aiBubble.innerHTML = "";
-                if (response.ok) {
-                    const data = await response.json();
-                    const replyText = data.choices[0].message.content;
-                    activeChat.messages.push({ role: "assistant", content: replyText });
-                    parseMarkdownContent(aiBubble, replyText);
-                } else {
-                    aiBubble.innerText = "Error: Check your connection or LM Studio settings.";
-                }
-            } catch (err) {
-                aiBubble.innerHTML = "";
-                aiBubble.innerText = "Failed to communicate with local AI server endpoint engine framework base.";
-            }
-
-            localStorage.setItem("rex_chats", JSON.stringify(chatHistory));
-            document.getElementById("chat-box").scrollTop = document.getElementById("chat-box").scrollHeight;
-            pushCloudSyncData();
-        }
-
-        // Updated function to handle bold text parsing properly alongside codeblocks and images
-        function parseMarkdownContent(container, rawText) {
-            const imgRegex = /!\[(.*?)\]\((.*?)\)/g;
-            let processedText = rawText;
-            let imgMatch;
-            
-            if (imgRegex.test(rawText)) {
-                imgRegex.lastIndex = 0; 
-                while ((imgMatch = imgRegex.exec(rawText)) !== null) {
-                    const altText = imgMatch[1] || "AI Generated Image";
-                    const imgUrl = imgMatch[2];
-                    
-                    const aiGeneratedImg = document.createElement("img");
-                    aiGeneratedImg.src = imgUrl;
-                    aiGeneratedImg.alt = altText;
-                    aiGeneratedImg.className = "chat-uploaded-img"; 
-                    aiGeneratedImg.style.marginTop = "12px";
-                    
-                    container.appendChild(aiGeneratedImg);
-                }
-                processedText = rawText.replace(imgRegex, '');
-            }
-
-            const codeRegex = /```([a-zA-Z0-9().+-]*)\n([\s\S]*?)\n```/g;
-            let lastIndex = 0;
-            let match;
-
-            while ((match = codeRegex.exec(processedText)) !== null) {
-                const textBefore = processedText.substring(lastIndex, match.index);
-                if (textBefore.trim()) {
-                    renderTextWithBold(container, textBefore);
-                }
-
-                const language = match[1] || "code";
-                const codeSnippet = match[2];
-
-                const codeBlockWrapper = document.createElement("div");
-                codeBlockWrapper.className = "code-container";
-
-                const header = document.createElement("div");
-                header.className = "code-header";
-                header.innerHTML = `<span>${language}</span>`;
-
-                const copyBtn = document.createElement("button");
-                copyBtn.innerText = "Copy";
-                copyBtn.onclick = function() {
-                    navigator.clipboard.writeText(codeSnippet);
-                    copyBtn.innerText = "Copied!";
-                    setTimeout(() => copyBtn.innerText = "Copy", 2000);
-                };
-
-                header.appendChild(copyBtn);
-                
-                const pre = document.createElement("pre");
-                pre.innerText = codeSnippet;
-
-                codeBlockWrapper.appendChild(header);
-                codeBlockWrapper.appendChild(pre);
-                container.appendChild(codeBlockWrapper);
-
-                lastIndex = codeRegex.lastIndex;
-            }
-
-            const textAfter = processedText.substring(lastIndex);
-            if (textAfter.trim() || container.children.length === 0) {
-                renderTextWithBold(container, textAfter);
-            }
-        }
-
-        // Helper function that breaks text blocks up and bolds any segment enclosed in **
-        function renderTextWithBold(parentContainer, textBlock) {
-            const boldRegex = /\*\*([\s\S]*?)\*\*/g;
-            let lastIdx = 0;
-            let boldMatch;
-
-            while ((boldMatch = boldRegex.exec(textBlock)) !== null) {
-                const plainTextBefore = textBlock.substring(lastIdx, boldMatch.index);
-                if (plainTextBefore) {
-                    const span = document.createElement("span");
-                    span.innerText = plainTextBefore;
-                    parentContainer.appendChild(span);
-                }
-
-                const boldTextContent = boldMatch[1];
-                if (boldTextContent) {
-                    const strong = document.createElement("strong");
-                    strong.innerText = boldTextContent;
-                    parentContainer.appendChild(strong);
-                }
-
-                lastIdx = boldRegex.lastIndex;
-            }
-
-            const plainTextAfter = textBlock.substring(lastIdx);
-            if (plainTextAfter) {
-                const span = document.createElement("span");
-                span.innerText = plainTextAfter;
-                parentContainer.appendChild(span);
-            }
         }
     </script>
 </body>
