@@ -109,17 +109,17 @@
         .thinking-dots span:nth-child(3) { animation-delay: .4s; }
         @keyframes blink { 0% { opacity: 0.4; } 20% { opacity: 1; } 100% { opacity: 0.4; } }
 
-        .input-container { padding: 0 18% 32px 18%; background: linear-gradient(180deg, rgba(19,19,20,0) 0%, var(--bg-main) 40%); display: flex; flex-direction: column; gap: 8px; }
+        .input-container { padding: 0 18% 32px 18%; background: linear-gradient(180deg, rgba(19,19,20,0) 0%, var(--bg-main) 40%); display: flex; flex-direction: column; gap: 8px; font-size: 12px; color: var(--text-muted); text-align: center; }
         
-        #file-preview-strip { display: none; align-items: center; gap: 8px; background: var(--bg-sidebar); border: 1px solid var(--border); padding: 8px 12px; border-radius: 12px; width: fit-content; }
+        #file-preview-strip { display: none; align-items: center; gap: 8px; background: var(--bg-sidebar); border: 1px solid var(--border); padding: 8px 12px; border-radius: 12px; width: fit-content; margin: 0 auto; }
         #file-preview-strip img { height: 40px; width: 40px; object-fit: cover; border-radius: 6px; }
         .remove-file-btn { background: none; border: none; color: #ff4a4a; font-weight: bold; cursor: pointer; font-size: 14px; margin-left: 4px; }
 
-        .input-area { display: flex; background: var(--bg-sidebar); border: 1px solid var(--border); border-radius: 16px; padding: 14px 16px; align-items: center; box-shadow: 0 8px 24px rgba(0,0,0,0.2); transition: border-color 0.2s; gap: 12px; }
+        .input-area { display: flex; background: var(--bg-sidebar); border: 1px solid var(--border); border-radius: 16px; padding: 14px 16px; align-items: center; box-shadow: 0 8px 24px rgba(0,0,0,0.2); transition: border-color 0.2s; gap: 12px; margin-top: 6px; }
         .input-area:focus-within { border-color: var(--accent); }
         textarea { flex: 1; background: transparent; border: none; color: var(--text-main); font-size: 15px; outline: none; resize: none; max-height: 180px; line-height: 1.5; display: block; }
         
-        .icon-btn { background: transparent; border: none; color: var(--text-muted); cursor: pointer; font-size: 20px; display: flex; align-items: center; justify-content: center; transition: color 0.2s; width: 32px; height: 32px; }
+        .icon-btn { background: transparent; border: none; color: var(--text-muted); cursor: pointer; font-size: 20px; display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; }
         .icon-btn:hover { color: var(--text-main); }
 
         .model-toggle-btn { background: var(--bg-surface); border: 1px solid var(--border); color: var(--text-main); padding: 0 12px; height: 36px; border-radius: 10px; cursor: pointer; font-size: 13px; font-weight: 600; display: flex; align-items: center; justify-content: center; transition: all 0.2s; white-space: nowrap; }
@@ -130,7 +130,7 @@
         .send-btn:hover { background: var(--accent-hover); transform: scale(1.03); }
 
         .modal-backdrop { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); z-index: 10000; display: none; align-items: center; justify-content: center; }
-        .modal { background: var(--bg-sidebar); border: 1px solid var(--border); border-radius: 20px; width: 480px; padding: 24px; box-shadow: 0 20px 40px rgba(0,0,0,0.4); }
+        .modal { background: var(--bg-sidebar); border: 1px solid var(--border); border-radius: 20px; width: 480px; padding: 24px; box-shadow: 0 20px 40px rgba(0,0,0,0.4); text-align: left; }
         .modal-title { font-size: 18px; font-weight: 700; margin-bottom: 20px; border-bottom: 1px solid var(--border); padding-bottom: 12px; color: var(--text-main); }
         .setting-group { margin-bottom: 18px; display: flex; flex-direction: column; gap: 8px; }
         .setting-group label { font-size: 13px; font-weight: 600; color: var(--text-muted); }
@@ -196,7 +196,7 @@
         <div id="chat-box"></div>
         
         <div class="input-container">
-            REX is not human make sure to double check info, RGSStudios is not affiliated with illegal activity.
+            <span>REX is not human make sure to double check info, RGSStudios is not affiliated with illegal activity.</span>
             <div id="file-preview-strip">
                 <img id="preview-thumbnail" src="about:blank" alt="Upload preview">
                 <span id="preview-filename" style="font-size: 12px; max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"></span>
@@ -325,14 +325,10 @@
         }
 
         function toggleModelSpeed() {
-            if (appConfig.model === "qwen3.5-9b-uncensored-hauhaucs-aggressive") {
-                appConfig.model = "qwen3.5-4b-uncensored-hauhaucs-aggressive";
-            } else if (appConfig.model === "qwen3.5-4b-uncensored-hauhaucs-aggressive") {
-                appConfig.model = "qwen3.5-2b-uncensored-hauhaucs-aggressive";
-            } else if (appConfig.model === "qwen3.5-2b-uncensored-hauhaucs-aggressive") {
-                appConfig.model = "qwen2.5-coder-3b-instruct-abliterated";
+            if (appConfig.model === "gemma-2-9b-uncensored" || appConfig.model.includes("9b")) {
+                appConfig.model = "gemma-4-e4b-uncensored-hauhaucs-aggressive";
             } else {
-                appConfig.model = "qwen3.5-9b-uncensored-hauhaucs-aggressive";
+                appConfig.model = "gemma-2-9b-uncensored";
             }
             
             localStorage.setItem("rex_ui_config", JSON.stringify(appConfig));
@@ -342,15 +338,10 @@
 
         function updateToggleBtnUI() {
             const toggleBtn = document.getElementById("model-fast-toggle");
-            if (appConfig.model === "qwen3.5-4b-uncensored-hauhaucs-aggressive") {
+            if (!toggleBtn) return;
+            if (appConfig.model === "gemma-4-e4b-uncensored-hauhaucs-aggressive" || appConfig.model.includes("4b")) {
                 toggleBtn.innerText = "4B Flash";
                 toggleBtn.classList.remove("mode-advanced");
-            } else if (appConfig.model === "qwen3.5-2b-uncensored-hauhaucs-aggressive") {
-                toggleBtn.innerText = "2B Lite";
-                toggleBtn.classList.remove("mode-advanced");
-            } else if (appConfig.model === "qwen2.5-coder-3b-instruct-abliterated") {
-                toggleBtn.innerText = "3B Coder";
-                toggleBtn.classList.add("mode-advanced");
             } else {
                 toggleBtn.innerText = "9B Pro";
                 toggleBtn.classList.add("mode-advanced");
@@ -380,14 +371,16 @@
             const bubbles = document.querySelectorAll('.bubble');
             bubbles.forEach(b => b.style.fontFamily = appConfig.fontFamily);
             
+            const badge = document.getElementById("active-model-badge");
+            if (!badge) return;
             if (appConfig.model.includes("9b")) {
-                document.getElementById("active-model-badge").innerText = "Qwen 3.5 9B";
+                badge.innerText = "Gemma 2 9B";
             } else if (appConfig.model.includes("4b")) {
-                document.getElementById("active-model-badge").innerText = "Qwen 3.5 4B";
+                badge.innerText = "Gemma 4 4B";
             } else if (appConfig.model.includes("3b") || appConfig.model.includes("coder")) {
-                document.getElementById("active-model-badge").innerText = "Qwen 2.5 3B Coder";
+                badge.innerText = "Qwen 2.5 3B Coder";
             } else {
-                document.getElementById("active-model-badge").innerText = "Qwen 3.5 2B";
+                badge.innerText = "Qwen 3.5 2B";
             }
         }
 
@@ -614,59 +607,7 @@
             chatBox.scrollTop = chatBox.scrollHeight;
         }
 
-        function escapeHtml(text) {
-            return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-        }
-
-        function parseMarkdown(text) {
-            let escaped = escapeHtml(text);
-            const codeBlocks = [];
-            
-            escaped = escaped.replace(/```(\w*)\n([\s\S]*?)```/g, (match, lang, code) => {
-                const id = "code_block_" + Math.random().toString(36).substr(2, 9);
-                codeBlocks.push({ id, code: code.trim(), lang: lang || "code" });
-                return `__CODE_BLOCK_PLACEHOLDER_${id}__`;
-            });
-
-            escaped = escaped.replace(/`([^`\n]+)`/g, '<code style="background: var(--bg-code); padding: 2px 6px; border-radius: 4px; font-family: \'JetBrains Mono\', monospace; font-size: 90%; color: var(--accent); border: 1px solid var(--border);">$1</code>');
-            escaped = escaped.replace(/\*\*([\s\S]*?)\*\*/g, '<strong>$1</strong>');
-            escaped = escaped.replace(/\*([\s\S]*?)\*/g, '<em>$1</em>');
-            escaped = escaped.replace(/\n/g, '<br>');
-
-            codeBlocks.forEach(item => {
-                const blockHtml = `
-                    <div class="code-container">
-                        <div class="code-header">
-                            <span>${item.lang.toUpperCase()}</span>
-                            <button onclick="copyToClipboard('${item.id}')">Copy</button>
-                        </div>
-                        <pre><code id="${item.id}">${item.code}</code></pre>
-                    </div>
-                `;
-                escaped = escaped.replace(`__CODE_BLOCK_PLACEHOLDER_${item.id}__`, blockHtml);
-            });
-
-            return escaped;
-        }
-
-        function copyToClipboard(id) {
-            const codeElement = document.getElementById(id);
-            if (!codeElement) return;
-            
-            const textarea = document.createElement("textarea");
-            textarea.value = codeElement.textContent;
-            document.body.appendChild(textarea);
-            textarea.select();
-            document.execCommand("copy");
-            document.body.removeChild(textarea);
-            
-            const btn = codeElement.closest('.code-container').querySelector('.code-header button');
-            const originalText = btn.innerText;
-            btn.innerText = "Copied!";
-            setTimeout(() => { btn.innerText = originalText; }, 2000);
-        }
-
-        function appendMessageToUI(role, text, imgData = null) {
+        function appendMessageToUI(role, text, imageUrl = null) {
             const chatBox = document.getElementById("chat-box");
             const row = document.createElement("div");
             row.className = `message-row ${role === 'user' ? 'user-row' : 'ai-row'}`;
@@ -674,147 +615,96 @@
             const bubble = document.createElement("div");
             bubble.className = "bubble";
             bubble.style.fontFamily = appConfig.fontFamily;
-            bubble.innerHTML = parseMarkdown(text);
-
-            if (imgData) {
+            
+            if (imageUrl) {
                 const img = document.createElement("img");
-                img.src = imgData;
                 img.className = "chat-uploaded-img";
+                img.src = imageUrl;
                 bubble.appendChild(img);
             }
-
+            
+            if (text) {
+                const textSpan = document.createElement("span");
+                textSpan.innerText = text;
+                bubble.appendChild(textSpan);
+            }
+            
             row.appendChild(bubble);
             chatBox.appendChild(row);
             chatBox.scrollTop = chatBox.scrollHeight;
             return bubble;
         }
 
-        function appendThinkingIndicator() {
-            const chatBox = document.getElementById("chat-box");
-            const row = document.createElement("div");
-            row.className = "message-row ai-row";
-            row.id = "thinking-row";
-            
-            const bubble = document.createElement("div");
-            bubble.className = "bubble";
-            
-            const dots = document.createElement("div");
-            dots.className = "thinking-dots";
-            dots.innerHTML = "Thinking <span></span><span></span><span></span>";
-            
-            bubble.appendChild(dots);
-            row.appendChild(bubble);
-            chatBox.appendChild(row);
-            chatBox.scrollTop = chatBox.scrollHeight;
-        }
-
-        function removeThinkingIndicator() {
-            const row = document.getElementById("thinking-row");
-            if (row) row.remove();
-        }
-
         async function sendMessage() {
             const inputEl = document.getElementById("user-input");
-            const promptText = inputEl.value.trim();
-            if (!promptText && !attachedImageBase64) return;
+            const text = inputEl.value.trim();
+            if (!text && !attachedImageBase64) return;
 
-            inputEl.value = "";
-            inputEl.style.height = "auto";
-
-            const activeChat = chatHistory.find(c => c.id === currentChatId);
-            if (!activeChat) return;
-
-            let userContentPayload;
-            if (attachedImageBase64) {
-                userContentPayload = [
-                    { type: "text", text: promptText },
-                    { type: "image_url", image_url: { url: attachedImageBase64 } }
-                ];
-            } else {
-                userContentPayload = promptText;
+            let activeChat = chatHistory.find(c => c.id === currentChatId);
+            if (!activeChat) {
+                startNewChat();
+                activeChat = chatHistory.find(c => c.id === currentChatId);
             }
 
-            activeChat.messages.push({ role: "user", content: userContentPayload });
-            
-            if (activeChat.title === "New Chat Session" && promptText) {
-                activeChat.title = promptText.substring(0, 24) + (promptText.length > 24 ? "..." : "");
+            if (activeChat.messages.length === 0) {
+                activeChat.title = text.substring(0, 30) || "Image Upload Session";
                 renderSidebar();
             }
 
-            appendMessageToUI("user", promptText, attachedImageBase64);
-            const savedImageForPayload = attachedImageBase64;
-            clearSelectedFile();
-
-            appendThinkingIndicator();
-
-            let requestMessages = [];
-            if (appConfig.systemPrompt) {
-                requestMessages.push({ role: "system", content: appConfig.systemPrompt });
+            let userContent = text;
+            if (attachedImageBase64) {
+                userContent = [
+                    { type: "text", text: text },
+                    { type: "image_url", image_url: { url: attachedImageBase64 } }
+                ];
             }
 
-            activeChat.messages.forEach(msg => {
-                requestMessages.push({ role: msg.role, content: msg.content });
-            });
+            activeChat.messages.push({ role: "user", content: userContent });
+            appendMessageToUI("user", text, attachedImageBase64);
+            
+            inputEl.value = "";
+            autoGrow(inputEl);
+            const capturedImage = attachedImageBase64;
+            clearSelectedFile();
+
+            const aiRow = document.createElement("div");
+            aiRow.className = "message-row ai-row";
+            const aiBubble = document.createElement("div");
+            aiBubble.className = "bubble";
+            aiBubble.innerHTML = '<div class="thinking-dots"><span></span><span></span><span></span></div>';
+            aiRow.appendChild(aiBubble);
+            document.getElementById("chat-box").appendChild(aiRow);
+            document.getElementById("chat-box").scrollTop = document.getElementById("chat-box").scrollHeight;
 
             try {
+                let payloadMessages = [{ role: "system", content: appConfig.systemPrompt }];
+                activeChat.messages.forEach(m => payloadMessages.push(m));
+
                 const response = await fetch(`${appConfig.url}/chat/completions`, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
                         model: appConfig.model,
-                        messages: requestMessages,
-                        temperature: appConfig.temperature,
-                        stream: true,
-                        max_tokens: 35000
+                        messages: payloadMessages,
+                        temperature: appConfig.temperature
                     })
                 });
 
-                removeThinkingIndicator();
-
-                if (!response.ok) {
-                    appendMessageToUI("assistant", "Configuration Error: Connection dropped by endpoint.");
-                    return;
+                if (response.ok) {
+                    const data = await response.json();
+                    const reply = data.choices[0].message.content;
+                    activeChat.messages.push({ role: "assistant", content: reply });
+                    aiBubble.innerText = reply;
+                } else {
+                    aiBubble.innerText = "Error: Failed to fetch response from backend node.";
                 }
-
-                const aiBubble = appendMessageToUI("assistant", "");
-                let completeAiResponse = "";
-                
-                const reader = response.body.getReader();
-                const decoder = new TextDecoder("utf-8");
-                let remainingBuffer = "";
-
-                while (true) {
-                    const { done, value } = await reader.read();
-                    if (done) break;
-
-                    remainingBuffer += decoder.decode(value, { stream: true });
-                    const lines = remainingBuffer.split("\n");
-                    remainingBuffer = lines.pop();
-
-                    for (const line of lines) {
-                        const cleanedLine = line.trim();
-                        if (!cleanedLine || cleanedLine === "data: [DONE]") continue;
-
-                        if (cleanedLine.startsWith("data: ")) {
-                            try {
-                                const parsedChunk = JSON.parse(cleanedLine.slice(6));
-                                const textDelta = parsedChunk.choices[0]?.delta?.content || "";
-                                completeAiResponse += textDelta;
-                                aiBubble.innerHTML = parseMarkdown(completeAiResponse);
-                                document.getElementById("chat-box").scrollTop = document.getElementById("chat-box").scrollHeight;
-                            } catch (e) {}
-                        }
-                    }
-                }
-
-                activeChat.messages.push({ role: "assistant", content: completeAiResponse });
-                localStorage.setItem("rex_chats", JSON.stringify(chatHistory));
-                pushCloudSyncData();
-
-            } catch (error) {
-                removeThinkingIndicator();
-                appendMessageToUI("assistant", "Network Malfunction: Host unreachable or connection refused.");
+            } catch (err) {
+                aiBubble.innerText = "Error: Network unreachable or service offline.";
             }
+
+            localStorage.setItem("rex_chats", JSON.stringify(chatHistory));
+            document.getElementById("chat-box").scrollTop = document.getElementById("chat-box").scrollHeight;
+            pushCloudSyncData();
         }
     </script>
 </body>
