@@ -196,7 +196,7 @@
         <div id="chat-box"></div>
         
         <div class="input-container">
-            <span>REX is not human make sure to double check info, RGSStudios is not affiliated with illegal activity.</span>
+            <span>REX is not human make sure to double check info, RGSStudios is not affiliated with illegal activity. <a href="https://rgsofficial.github.io/rex-ai-tos">tos</a></span>
             <div id="file-preview-strip">
                 <img id="preview-thumbnail" src="about:blank" alt="Upload preview">
                 <span id="preview-filename" style="font-size: 12px; max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"></span>
@@ -207,10 +207,10 @@
                 <button class="icon-btn" onclick="document.getElementById('file-uploader').click()">+</button>
                 <textarea id="user-input" rows="1" placeholder="Type your message here..." oninput="autoGrow(this)" onkeydown="handleKeyPress(event)"></textarea>
                 
-                <button id="model-fast-toggle" class="model-toggle-btn" onclick="toggleModelSpeed()">9B Advanced</button>
+                <button id="model-fast-toggle" class="model-toggle-btn" onclick="toggleModelSpeed()">8B Pro</button>
                 
                 <button class="send-btn" onclick="sendMessage()">➔</button>
-            </div>copy
+            </div>
         </div>
     </div>
 
@@ -325,10 +325,10 @@
         }
 
         function toggleModelSpeed() {
-            if (appConfig.model === "gemma-2-9b-uncensored" || appConfig.model.includes("9b")) {
+            if (appConfig.model === "darkidol-llama-3.1-8b-instruct-1.2-uncensored" || appConfig.model.includes("9b")) {
                 appConfig.model = "gemma-4-e4b-uncensored-hauhaucs-aggressive";
             } else {
-                appConfig.model = "gemma-2-9b-uncensored";
+                appConfig.model = "darkidol-llama-3.1-8b-instruct-1.2-uncensored";
             }
             
             localStorage.setItem("rex_ui_config", JSON.stringify(appConfig));
@@ -343,7 +343,7 @@
                 toggleBtn.innerText = "4B Flash";
                 toggleBtn.classList.remove("mode-advanced");
             } else {
-                toggleBtn.innerText = "9B Pro";
+                toggleBtn.innerText = "8B Pro";
                 toggleBtn.classList.add("mode-advanced");
             }
         }
@@ -373,14 +373,10 @@
             
             const badge = document.getElementById("active-model-badge");
             if (!badge) return;
-            if (appConfig.model.includes("9b")) {
-                badge.innerText = "Gemma 2 9B";
+            if (appConfig.model.includes("8b")) {
+                badge.innerText = "llama 3.1 8B";
             } else if (appConfig.model.includes("4b")) {
                 badge.innerText = "Gemma 4 4B";
-            } else if (appConfig.model.includes("3b") || appConfig.model.includes("coder")) {
-                badge.innerText = "Qwen 2.5 3B Coder";
-            } else {
-                badge.innerText = "Qwen 3.5 2B";
             }
         }
 
